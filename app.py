@@ -1,39 +1,36 @@
-from flask import Flask, render_template_string
+import streamlit as st
 import boto3
 
-app = Flask(__name__)
+# AWS Credentials (hardcoded - not recommended for production)
+AWS_ACCESS_KEY = "AKIAWVZBUMHODNLLXI2K"
+AWS_SECRET_KEY = "tOjA7M6ZnXQ0X7cLGvKJkuCwdba5FGlidYRwGaqk"
+REGION_NAME = "ap-south-1"
+BUCKET_NAME = "newawignbucket"
 
-# AWS credentials - hardcoded as per your request
-AWS_ACCESS_KEY = 'AKIAWVZBUMHODNLLXI2K'
-AWS_SECRET_KEY = 'tOjA7M6ZnXQ0X7cLGvKJkuCwdba5FGlidYRwGaqk'
-AWS_REGION = 'ap-south-1'
-BUCKET_NAME = 'newawignbucket'
-
-# Boto3 client setup
-s3_client = boto3.client(
-    's3',
+# Initialize AWS Rekognition client
+rekognition_client = boto3.client(
+    'rekognition',
     aws_access_key_id=AWS_ACCESS_KEY,
     aws_secret_access_key=AWS_SECRET_KEY,
-    region_name=AWS_REGION
+    region_name=REGION_NAME
 )
 
-@app.route('/')
-def show_image():
-    # The S3 object key (folder path + filename)
-    object_key = 'index/Darshan.jpg.jpg'
+st.title("Face Recognition with AWS Rekognition")
 
-    # Generate presigned URL
-    image_url = s3_client.generate_presigned_url(
-        'get_object',
-        Params={'Bucket': BUCKET_NAME, 'Key': object_key},
-        ExpiresIn=3600  # URL valid for 1 hour
+uploaded_file = st.file_uploader("Upload an image", type=["jpg", "jpeg", "png"])
+
+if uploaded_file is not None:
+    # Display uploaded image
+    st.image(uploaded_file, caption="Uploaded Image", use_column_width=True)
+    
+    # Read file bytes
+    file_bytes = uploaded_file.read()
+    
+    # Call AWS Rekognition for face detection
+    response = rekognition_client.detect_faces(
+        Image={'Bytes': file_bytes},
+        Attributes=['ALL']
     )
-
-    # Render the image
-    return render_template_string('''
-        <h1>Image from S3</h1>
-        <img src="{{ image_url }}" alt="Image from S3" />
-    ''', image_url=image_url)
-
-if __name__ == '__main__':
-    app.run(debug=True)
+    
+    st.write("Detected Faces:")
+    st.json(response)
